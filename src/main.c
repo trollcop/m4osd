@@ -7,7 +7,6 @@ void lolInit(void)
 void systemInit(void)
 {
     GPIO_InitTypeDef gpio;
-    SPI_InitTypeDef spi;
 
     SystemCoreClockUpdate();
 
@@ -25,6 +24,8 @@ void systemInit(void)
     gpio.GPIO_PuPd = GPIO_PuPd_NOPULL;
     GPIO_Init(GPIOB, &gpio);
 
+    spiInit();
+
     // SPI2+SPI3
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI2 | RCC_APB1Periph_SPI3, ENABLE);
     GPIO_PinAFConfig(GPIOB, GPIO_PinSource13, GPIO_AF_5); // SPI2_SCK PB13
@@ -36,6 +37,8 @@ void systemInit(void)
     gpio.GPIO_PuPd = GPIO_PuPd_DOWN;
     gpio.GPIO_OType = GPIO_OType_PP;
     GPIO_Init(GPIOB, &gpio);
+
+    vdacVoltage(0, 600);
 }
 
 OS_STK taskA_stk[128];
@@ -63,15 +66,17 @@ void task50Hz(void *pdata)
 
 void taskA(void* pdata)
 {
-    unsigned int led_num;
-    static float p = 1;
     static float s = 0;
+    int angle = 0;
+    int ctr = 0;
 
     for (;;) {
-        led_num++;
-        CoTickDelay(500);
-        s = sinf(p++);
+        CoTickDelay(30);
+        s = sinf(angle * M_PI / 180.0f);
+        ctr = ((s * 3300) + 1650);
         digitalToggle(GPIOB, GPIO_Pin_1);
+        vdacVoltage(0, ctr);
+        angle++;
     }
 }
 

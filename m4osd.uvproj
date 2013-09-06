@@ -348,7 +348,7 @@
             <uThumb>0</uThumb>
             <uSurpInc>1</uSurpInc>
             <VariousControls>
-              <MiscControls>--c99</MiscControls>
+              <MiscControls>--c99 --gnu</MiscControls>
               <Define>USE_STDPERIPH_DRIVER,STM32F30X,HSE_VALUE=12000000</Define>
               <Undefine></Undefine>
               <IncludePath>lib\CMSIS;lib\STM32F30x_StdPeriph_Driver\inc;lib\STM32_USB-FS-Device_Driver\inc;lib\CoOS;src</IncludePath>
@@ -626,6 +626,11 @@
               <FileName>main.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\src\main.c</FilePath>
+            </File>
+            <File>
+              <FileName>drv_spi.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\drv_spi.c</FilePath>
             </File>
           </Files>
         </Group>

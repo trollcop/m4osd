@@ -2,6 +2,9 @@
 
 // for roundf()
 #define __USE_C99_MATH
+#ifndef M_PI
+#define M_PI    (3.1415926f)
+#endif
 
 /*
                    AF1             AF2       AF3         IO Str  Firmware Main    Firmware AF Note
@@ -39,6 +42,14 @@ PB7                TIM4_CH2                              FT      PWM1
 PB8                CAN_RX                                FT      CAN Recive
 PB9                CAN_TX                                FT      CAN Transmit
 
+Used DMA Channels
+DMA1_Channel1       ADC1
+DMA1_Channel2       USART3_TX or SPI1_RX
+DMA1_Channel3       USART3_RX
+DMA1_Channel5       SPI2_TX (required)
+DMA2_Channel2       SPI3_TX (required)
+DMA2_Channel3       DAC1_OUT
+
 Used timers (to be updated):
 APB2: TIM1, TIM15, TIM16, TIM17
 APB1: TIM2, TIM3, TIM4
@@ -59,3 +70,5 @@ APB1: TIM2, TIM3, TIM4
 #define digitalHi(p, i)     { p->BSRR = i; }
 #define digitalLo(p, i)     { p->BRR = i; }
 #define digitalToggle(p, i) { p->ODR ^= i; }
+
+#include "drv_spi.h"
