@@ -44,7 +44,7 @@
             <InvalidFlash>1</InvalidFlash>
           </TargetStatus>
           <OutputDirectory>.\obj\</OutputDirectory>
-          <OutputName>cloneflight</OutputName>
+          <OutputName>frskyosd</OutputName>
           <CreateExecutable>1</CreateExecutable>
           <CreateLib>0</CreateLib>
           <CreateHexFile>1</CreateHexFile>
@@ -548,11 +548,6 @@
               <FilePath>.\lib\CoOS\flag.c</FilePath>
             </File>
             <File>
-              <FileName>hook.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\lib\CoOS\hook.c</FilePath>
-            </File>
-            <File>
               <FileName>kernelHeap.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\lib\CoOS\kernelHeap.c</FilePath>
@@ -631,6 +626,16 @@
               <FileName>drv_spi.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\src\drv_spi.c</FilePath>
+            </File>
+            <File>
+              <FileName>osdcore.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\osdcore.c</FilePath>
+            </File>
+            <File>
+              <FileName>logo.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\logo.c</FilePath>
             </File>
           </Files>
         </Group>

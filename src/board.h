@@ -46,13 +46,24 @@ Used DMA Channels
 DMA1_Channel1       ADC1
 DMA1_Channel2       USART3_TX or SPI1_RX
 DMA1_Channel3       USART3_RX
-DMA1_Channel5       SPI2_TX (required)
-DMA2_Channel2       SPI3_TX (required)
+DMA1_Channel4       line memcpy m2m DMA
+DMA1_Channel5       SPI2_TX (required, white pixel)
+DMA2_Channel1       memset m2m DMA (to zero screen)
+DMA2_Channel2       SPI3_TX (required, black pixel)
 DMA2_Channel3       DAC1_OUT
+DMA2_Channel4       memcpy m2m DMA (to copy lines)
 
 Used timers (to be updated):
 APB2: TIM1, TIM15, TIM16, TIM17
 APB1: TIM2, TIM3, TIM4
+
+Video switch truth table
+SPI2 = A0, SPI3 = A1
+A1 A0
+ 0  0 S1 (video_in)
+ 0  1 S2 (white)
+ 1  0 S3 (black)
+ 1  1 S4 (video_2)
 
 */
 
@@ -70,5 +81,26 @@ APB1: TIM2, TIM3, TIM4
 #define digitalHi(p, i)     { p->BSRR = i; }
 #define digitalLo(p, i)     { p->BRR = i; }
 #define digitalToggle(p, i) { p->ODR ^= i; }
+
+// Hardware definitions and GPIO
+#define WHITE_SPI   SPI2
+#define WHITE_DMA   DMA1_Channel5
+#define WHITE_DMA_IRQHandler DMA1_Channel5_IRQHandler
+#define BLACK_SPI   SPI3
+#define BLACK_DMA   DMA2_Channel2
+#define MEMSET_DMA  DMA2_Channel1
+#define MEMCPY_DMA  DMA2_Channel4
+
+#define LED_GPIO    GPIOB
+#define LED0_PIN    GPIO_Pin_0
+#define LED1_PIN    GPIO_Pin_1
+
+#define LED0_TOGGLE digitalToggle(LED_GPIO, LED0_PIN);
+#define LED0_OFF    digitalHi(LED_GPIO, LED0_PIN);
+#define LED0_ON     digitalLo(LED_GPIO, LED0_PIN);
+
+#define LED1_TOGGLE digitalToggle(LED_GPIO, LED1_PIN);
+#define LED1_OFF    digitalHi(LED_GPIO, LED1_PIN);
+#define LED1_ON     digitalLo(LED_GPIO, LED1_PIN);
 
 #include "drv_spi.h"

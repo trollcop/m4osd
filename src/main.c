@@ -1,10 +1,59 @@
 #include "board.h"
+#include "osdcore.h"
 
-void lolInit(void)
+#define BLINK_STACK_SIZE 48
+OS_STK blinkStack[BLINK_STACK_SIZE];
+volatile uint32_t minCycles, idleCounter, totalCycles;
+uint32_t oldIdleCounter;
+volatile float idlePercent;
+
+void blinkTask(void *unused)
 {
+    while (1) {
+        CoTickDelay(250);
+        LED0_TOGGLE;
+        idlePercent = 100.0f * (idleCounter - oldIdleCounter) * minCycles / totalCycles;
+        oldIdleCounter = idleCounter;
+        totalCycles = 0;
+    }
 }
 
-void systemInit(void)
+void CoIdleTask(void *pdata)
+{
+    volatile unsigned long cycles;
+    volatile unsigned int *DWT_CYCCNT = (volatile unsigned int *)0xE0001004;
+    volatile unsigned int *DWT_CONTROL = (volatile unsigned int *)0xE0001000;
+    volatile unsigned int *SCB_DEMCR = (volatile unsigned int *)0xE000EDFC;
+
+    *SCB_DEMCR = *SCB_DEMCR | 0x01000000;
+    *DWT_CONTROL = *DWT_CONTROL | 1;    // enable the counter
+
+    minCycles = 99999999;
+    while (1) {
+        idleCounter++;
+
+        __nop();
+        __nop();
+        __nop();
+        __nop();
+
+        cycles = *DWT_CYCCNT;
+        *DWT_CYCCNT = 0;        // reset the counter
+
+        // record shortest number of instructions for loop
+        totalCycles += cycles;
+        if (cycles < minCycles)
+            minCycles = cycles;
+    }
+}
+
+void CoStkOverflowHook(OS_TID taskID)
+{
+    // Process stack overflow here
+    while (1);
+}
+
+void setup(void)
 {
     GPIO_InitTypeDef gpio;
 
@@ -17,92 +66,42 @@ void systemInit(void)
     FPU->FPCCR &= ~FPU_FPCCR_LSPEN_Msk;     // turn off lazy save
 
     // Status LED PB0, PB1
-    digitalHi(GPIOB, GPIO_Pin_0 | GPIO_Pin_1);
-    gpio.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1;
+    digitalHi(LED_GPIO, LED0_PIN | LED1_PIN);
+    gpio.GPIO_Pin = LED0_PIN | LED1_PIN;
     gpio.GPIO_OType = GPIO_OType_PP;
     gpio.GPIO_Speed = GPIO_Speed_50MHz;
     gpio.GPIO_PuPd = GPIO_PuPd_NOPULL;
-    GPIO_Init(GPIOB, &gpio);
+    GPIO_Init(LED_GPIO, &gpio);
 
     spiInit();
-
-    // SPI2+SPI3
-    RCC_APB1PeriphClockCmd(RCC_APB1Periph_SPI2 | RCC_APB1Periph_SPI3, ENABLE);
-    GPIO_PinAFConfig(GPIOB, GPIO_PinSource13, GPIO_AF_5); // SPI2_SCK PB13
-    GPIO_PinAFConfig(GPIOB, GPIO_PinSource14, GPIO_AF_5); // SPI2_MISO PB14
-    GPIO_PinAFConfig(GPIOB, GPIO_PinSource3, GPIO_AF_6); // SPI3_SCK PB3
-    GPIO_PinAFConfig(GPIOB, GPIO_PinSource4, GPIO_AF_6); // SPI3_MISO PB4
-    gpio.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_13 | GPIO_Pin_14;
-    gpio.GPIO_Mode = GPIO_Mode_AF;
-    gpio.GPIO_PuPd = GPIO_PuPd_DOWN;
-    gpio.GPIO_OType = GPIO_OType_PP;
-    GPIO_Init(GPIOB, &gpio);
-
     vdacVoltage(0, 600);
 }
 
-OS_STK taskA_stk[128];
-OS_STK taskB_stk[128];
+#define MAIN_STACK_SIZE 512
+OS_STK mainStack[MAIN_STACK_SIZE];
 
-OS_TCID timer50Hz;
-OS_FlagID timer50HzFlag;
-OS_STK task50Hzstk[128];
-
-void timer50HzCallback(void)
+void mainTask(void *unused)
 {
-    // set flag
-    CoSetFlag(timer50HzFlag);
-}
-
-void task50Hz(void *pdata)
-{
-    static float p = 1;
     while (1) {
-        CoWaitForSingleFlag(timer50HzFlag, 0);
-        digitalToggle(GPIOB, GPIO_Pin_0);
-        p *= 1.1f;
-    }
-}
-
-void taskA(void* pdata)
-{
-    static float s = 0;
-    int angle = 0;
-    int ctr = 0;
-
-    for (;;) {
-        CoTickDelay(30);
-        s = sinf(angle * M_PI / 180.0f);
-        ctr = ((s * 3300) + 1650);
-        digitalToggle(GPIOB, GPIO_Pin_1);
-        vdacVoltage(0, ctr);
-        angle++;
-    }
-}
-
-void taskB(void* pdata)
-{
-    unsigned int led_num;
-
-    for (;;) {
-        led_num++;
-        CoTickDelay(250);
-        // LED0_TOGGLE;
+        CoWaitForSingleFlag(osdData.osdUpdateFlag, 0);
+        CoClearFlag(osdData.osdUpdateFlag);
+        LED1_TOGGLE;
+        CoTickDelay(5);
     }
 }
 
 int main(void)
 {
-    lolInit();
-    systemInit();
+    setup();
+
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
     CoInitOS();
-    timer50HzFlag = CoCreateFlag(1, 0);
-    CoCreateTask(taskA, 0, 10, &taskA_stk[128 - 1], 128);
-    CoCreateTask(task50Hz, 0, 15, &task50Hzstk[128 - 1], 128);
-    timer50Hz = CoCreateTmr(TMR_TYPE_PERIODIC, 100, 100, timer50HzCallback);
-    CoStartTmr(timer50Hz);
 
+    osdInit();
+
+    CoCreateTask(blinkTask, 0, 30, &blinkStack[BLINK_STACK_SIZE - 1], BLINK_STACK_SIZE);
+    CoCreateTask(mainTask, 0, 10, &mainStack[MAIN_STACK_SIZE - 1], MAIN_STACK_SIZE);
     CoStartOS();
+
     return 0;
 }
