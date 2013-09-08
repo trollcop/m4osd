@@ -48,6 +48,8 @@ DMA1_Channel2       USART3_TX or SPI1_RX
 DMA1_Channel3       USART3_RX
 DMA1_Channel4       line memcpy m2m DMA
 DMA1_Channel5       SPI2_TX (required, white pixel)
+DMA1_Channel6       memcpy m2m DMA (to copy black)
+
 DMA2_Channel1       memset m2m DMA (to zero screen)
 DMA2_Channel2       SPI3_TX (required, black pixel)
 DMA2_Channel3       DAC1_OUT
@@ -85,11 +87,11 @@ A1 A0
 // Hardware definitions and GPIO
 #define WHITE_SPI   SPI2
 #define WHITE_DMA   DMA1_Channel5
-#define WHITE_DMA_IRQHandler DMA1_Channel5_IRQHandler
 #define BLACK_SPI   SPI3
 #define BLACK_DMA   DMA2_Channel2
 #define MEMSET_DMA  DMA2_Channel1
 #define MEMCPY_DMA  DMA2_Channel4
+#define BLKCPY_DMA  DMA2_Channel5
 
 #define LED_GPIO    GPIOB
 #define LED0_PIN    GPIO_Pin_0

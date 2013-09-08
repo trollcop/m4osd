@@ -11,7 +11,7 @@ void blinkTask(void *unused)
 {
     while (1) {
         CoTickDelay(250);
-        LED0_TOGGLE;
+        // LED0_TOGGLE;
         idlePercent = 100.0f * (idleCounter - oldIdleCounter) * minCycles / totalCycles;
         oldIdleCounter = idleCounter;
         totalCycles = 0;
@@ -74,7 +74,8 @@ void setup(void)
     GPIO_Init(LED_GPIO, &gpio);
 
     spiInit();
-    vdacVoltage(0, 600);
+    vdacVoltage(0, 640);
+    vdacVoltage(1, 54);
 }
 
 #define MAIN_STACK_SIZE 512
