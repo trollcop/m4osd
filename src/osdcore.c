@@ -1,7 +1,7 @@
 #include "board.h"
 #include "osdcore.h"
 
-#define NIGGER
+// #define NIGGER
 
 static uint32_t zero = 0;
 osdData_t osdData;
@@ -81,8 +81,8 @@ static void osdConfigurePixelChannel(SPI_TypeDef *SPIx, DMA_Channel_TypeDef *DMA
 }
 
 // Timer stuf to generate sync and video display.  Need to tweak these if doing a PAL port.
-#define TIMER_PERIOD 4572
-#define INTERRUPT_DELAY 700
+#define TIMER_PERIOD 4576
+#define INTERRUPT_DELAY 630
 uint16_t CCR3_Val = 342;
 uint16_t PrescalerValue = 0;
 volatile uint16_t lineCount = 0;
@@ -97,6 +97,7 @@ void TIM3_IRQHandler(void)
 #if 0
     if (lineCount < BUFFER_VERT_SIZE) {
         // TODO trigger line output DMA
+        
     }
 #endif
 
@@ -130,13 +131,19 @@ static void osdVideoGeneratorInit(void)
     GPIO_PinAFConfig(GPIOB, GPIO_PinSource0, GPIO_AF_2); // TIM3_CH3 PB0
     gpio.GPIO_Pin = GPIO_Pin_0;
     gpio.GPIO_Mode = GPIO_Mode_AF;
-    gpio.GPIO_PuPd = GPIO_PuPd_DOWN;
+    gpio.GPIO_PuPd = GPIO_PuPd_NOPULL;
     gpio.GPIO_OType = GPIO_OType_PP;
+    GPIO_Init(GPIOB, &gpio);
+
+    gpio.GPIO_Pin = GPIO_Pin_1;
+    gpio.GPIO_OType = GPIO_OType_PP;
+    gpio.GPIO_Mode = GPIO_Mode_IN;
+    // digitalLo(GPIOB, GPIO_Pin_1);
     GPIO_Init(GPIOB, &gpio);
 
     // Enable TIM3 interrupt
     nvic.NVIC_IRQChannel = TIM3_IRQn;
-    nvic.NVIC_IRQChannelPreemptionPriority = 0;
+    nvic.NVIC_IRQChannelPreemptionPriority = 1;
     nvic.NVIC_IRQChannelCmd = ENABLE;
     NVIC_Init(&nvic);
     
@@ -318,7 +325,7 @@ void osdInit(void)
     osdData.osdUpdateFlag = CoCreateFlag(0, 0);
 
     // init video generator
-    // osdVideoGeneratorInit();
+    osdVideoGeneratorInit();
 }
 
 // WHITE_DMA (end of pixels line)
