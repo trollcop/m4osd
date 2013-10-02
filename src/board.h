@@ -6,7 +6,11 @@
 #define M_PI    (3.1415926f)
 #endif
 
+// for REV2 hardware with videogen capability
+#define REV2    1
+
 /*
+ rev 1
                    AF1             AF2       AF3         IO Str  Firmware Main    Firmware AF Note
 PC13     CS1(F)    GPIO                                  TC      Flash CS
 PC14     VBUS_SEN  EXTI15_10                             TC      VBUS Sense
@@ -41,6 +45,43 @@ PB6                TIM4_CH1                              FT      PPM_IN
 PB7                TIM4_CH2                              FT      PWM1
 PB8                CAN_RX                                FT      CAN Recive
 PB9                CAN_TX                                FT      CAN Transmit
+
+ rev 2
+                   AF1             AF2       AF3         IO Str  Firmware Main    Firmware AF Note
+PC13     CS1(F)    GPIO                                  TC      Flash CS
+PC14     VBUS_SEN  EXTI15_10                             TC      VBUS Sense
+PC15     ODD/EVEN  GPIO                                  TC      From LM1980
+PA0                ADC1_IN1                              TTa     VBAT
+PA1                ADC1_IN2                              TTa     OSDVBAT
+PA2                ADC1_IN3        USART2_TX TIM15_CH1   TTa     ADC/PWM/USART
+PA3                ADC1_IN4        USART2_RX TIM15_CH2   TTa     ADC/PWM/USART
+PA4      DAC       DAC1_OUT1                             TTa     Audio Modem output
+PA5                SPI1_SCK                              TTa     Flash/DAC SPI bus
+PA6                SPI1_MISO                             TTa     Flash/DAC SPI bus
+PA7                SPI1_MOSI                             TTa     Flash/DAC SPI bus
+PB0      VGEN      TIM3_CH3                              TTa     CVBS_LO (black)
+PB1      VGEN      TIM3_CH4                              TTa     CVBS_HI (white)
+PB2      CS2(D)    GPIO                                  TTa     SPI DAC CS
+PB10               USART3_TX                             TTa     USART3
+PB11               USART3_RX                             TTa     USART3
+PB12               GPIO                                  TTa     LED0
+PB13     VIDEO     SPI2_SCK                              TTa     Pixel clock input
+PB14     VIDEO     SPI2_MISO                             TTa     Pixel output, white(?)
+PB15     VIDEO     TIM15_CH2                             TTa     VSync input
+PA8      VIDEO     TIM1_CH1                              FT      HSync input
+PA9                USART1_TX       I2C2_SCL              FT      USART1 or I2C2
+PA10               USART1_RX       I2C2_SDA              FT      USART1 or I2C2
+PA11     USB       USB_DM                                FT      USB
+PA12     USB       USB_DP                                FT      USB
+PA15     VIDEO     TIM8_CH1                              FT      Pixel clock generator
+PB3      VIDEO     SPI3_SCK                              FT      Pixel clock input
+PB4      VIDEO     SPI3_MISO                             FT      Pixel output, black(?)
+PB5                TIM17_CH1                             FT      FLVS Input
+PB6                TIM4_CH1                              FT      PPM_IN
+PB7                GPIO            TIM4_CH2              FT      LED1
+PB8                CAN_RX                                FT      CAN Recive
+PB9                CAN_TX                                FT      CAN Transmit
+
 
 Used DMA Channels
 DMA1_Channel1       ADC1
@@ -94,8 +135,15 @@ A1 A0
 #define BLKCPY_DMA  DMA2_Channel5
 
 #define LED_GPIO    GPIOB
+#ifndef REV2
+// REV1 pinout
 #define LED0_PIN    GPIO_Pin_0
 #define LED1_PIN    GPIO_Pin_1
+#else
+// REV2 pinout
+#define LED0_PIN    GPIO_Pin_12
+#define LED1_PIN    GPIO_Pin_7
+#endif
 
 #define LED0_TOGGLE digitalToggle(LED_GPIO, LED0_PIN);
 #define LED0_OFF    digitalHi(LED_GPIO, LED0_PIN);

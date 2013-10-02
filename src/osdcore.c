@@ -80,6 +80,96 @@ static void osdConfigurePixelChannel(SPI_TypeDef *SPIx, DMA_Channel_TypeDef *DMA
     SPI_I2S_DMACmd(SPIx, SPI_I2S_DMAReq_Tx, ENABLE);
 }
 
+// Timer stuf to generate sync and video display.  Need to tweak these if doing a PAL port.
+#define TIMER_PERIOD 4572
+#define INTERRUPT_DELAY 700
+uint16_t CCR3_Val = 342;
+uint16_t PrescalerValue = 0;
+volatile uint16_t lineCount = 0;
+
+void TIM3_IRQHandler(void)
+{
+    // here's where the ntsc video drawing magic happens!
+    TIM_ClearITPendingBit(TIM3, TIM_IT_CC1);
+    lineCount++;
+    LED1_TOGGLE;
+
+#if 0
+    if (lineCount < BUFFER_VERT_SIZE) {
+        // TODO trigger line output DMA
+    }
+#endif
+
+    // vertical sync
+    if (lineCount == 242)
+        TIM_SetCompare3(TIM3, (4115 - 307));
+
+    // transition back to normal sync
+    if (lineCount == 261)
+        TIM_SetCompare3(TIM3, 460);
+
+    // go back to normal
+    if (lineCount == 262) {
+        TIM_SetCompare3(TIM3, 308);
+        lineCount = 0;
+    }
+}
+
+static void osdVideoGeneratorInit(void)
+{
+    TIM_TimeBaseInitTypeDef tim;
+    TIM_OCInitTypeDef timoc;
+    GPIO_InitTypeDef gpio;
+    NVIC_InitTypeDef nvic;
+
+    // Turn on TIM3 peripheral
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);
+
+    // Configure GPIO for sync gen
+    GPIO_StructInit(&gpio);
+    GPIO_PinAFConfig(GPIOB, GPIO_PinSource0, GPIO_AF_2); // TIM3_CH3 PB0
+    gpio.GPIO_Pin = GPIO_Pin_0;
+    gpio.GPIO_Mode = GPIO_Mode_AF;
+    gpio.GPIO_PuPd = GPIO_PuPd_DOWN;
+    gpio.GPIO_OType = GPIO_OType_PP;
+    GPIO_Init(GPIOB, &gpio);
+
+    // Enable TIM3 interrupt
+    nvic.NVIC_IRQChannel = TIM3_IRQn;
+    nvic.NVIC_IRQChannelPreemptionPriority = 0;
+    nvic.NVIC_IRQChannelCmd = ENABLE;
+    NVIC_Init(&nvic);
+    
+    // Compute the prescaler value
+    PrescalerValue = 0;
+
+    /* Time base configuration */
+    tim.TIM_Period = TIMER_PERIOD; // 72mhz / 15.73426 khz line rate
+    tim.TIM_Prescaler = PrescalerValue;
+    tim.TIM_ClockDivision = 0;
+    tim.TIM_CounterMode = TIM_CounterMode_Up;
+
+    TIM_TimeBaseInit(TIM3, &tim);
+
+    // PWM1 Mode configuration: TIM3_CH3
+    timoc.TIM_OCMode = TIM_OCMode_PWM1;
+    timoc.TIM_OutputState = TIM_OutputState_Enable;
+    timoc.TIM_Pulse = CCR3_Val;
+    timoc.TIM_OCPolarity = TIM_OCPolarity_Low;
+    TIM_OC3Init(TIM3, &timoc);
+    TIM_OC3PreloadConfig(TIM3, TIM_OCPreload_Enable);
+
+    timoc.TIM_OCMode = TIM_OCMode_Timing;
+    timoc.TIM_Pulse = INTERRUPT_DELAY;
+    TIM_OC1Init(TIM3, &timoc);
+    TIM_OC1PreloadConfig(TIM3, TIM_OCPreload_Enable);
+
+    // Enable TIM3 Count Compare interrupt
+    TIM_ITConfig(TIM3, TIM_IT_CC1, ENABLE);
+    // TIM3 enable counter */
+    TIM_Cmd(TIM3, ENABLE);
+}
+
 void osdInit(void)
 {
     GPIO_InitTypeDef gpio;
@@ -226,6 +316,9 @@ void osdInit(void)
     osdData.Height = OSD_HEIGHT_NTSC;
 
     osdData.osdUpdateFlag = CoCreateFlag(0, 0);
+
+    // init video generator
+    // osdVideoGeneratorInit();
 }
 
 // WHITE_DMA (end of pixels line)
@@ -287,7 +380,6 @@ void TIM1_CC_IRQHandler(void)
             osdData.currentScanLine = 0;
             maxline = 0;
         } else if (GPIOA->IDR & GPIO_Pin_8) {   // check HSYNC
-            LED1_ON;
             osdData.currentScanLine++;
 
             if (osdData.currentScanLine >= slpos && osdData.currentScanLine <= slmax - 1) {
@@ -329,7 +421,6 @@ void TIM1_CC_IRQHandler(void)
                 BLKCPY_DMA->CCR |= DMA_CCR_EN;
 #endif
             }
-            LED1_OFF;
 #if 0
             // clear prev OSD_RAM line
             if (inv && osdData.currentScanLine >= slpos && osdData.currentScanLine <= slmax - 1) {
