@@ -222,8 +222,8 @@ __asm  void PendSV_Handler()
     IMPORT  TCBRunning
     IMPORT  TCBNext
     IMPORT  OSSchedLock
-    IMPORT  fpuRegisters
 #ifdef FPU_HARD
+    IMPORT  fpuRegisters
     LDR     R3,=TCBRunning
     LDR     R0,[R3]
     LDRB    R1,[R0,#6]
