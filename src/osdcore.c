@@ -1,7 +1,7 @@
 #include "board.h"
 #include "osdcore.h"
 
-// #define NIGGER
+#define NIGGER
 
 static uint32_t zero = 0;
 osdData_t osdData;
@@ -92,7 +92,7 @@ void TIM3_IRQHandler(void)
     // here's where the ntsc video drawing magic happens!
     TIM_ClearITPendingBit(TIM3, TIM_IT_CC1);
     lineCount++;
-    LED1_TOGGLE;
+    // LED1_TOGGLE;
 
 #if 0
     if (lineCount < BUFFER_VERT_SIZE) {
@@ -206,7 +206,9 @@ void osdInit(void)
     GPIO_Init(GPIOB, &gpio);
 
     osdConfigurePixelChannel(WHITE_SPI, WHITE_DMA, DMA1_Channel5_IRQn, (uint32_t)osdData.OSD_LINE, 0);
+#ifdef NIGGER
     osdConfigurePixelChannel(BLACK_SPI, BLACK_DMA, (enum IRQn)-1, (uint32_t)osdData.OSD_LINEB, 0);
+#endif
 
     // HSYNC Trigger (TIM1_CH1, PA8, AF6)
     GPIO_PinAFConfig(GPIOA, GPIO_PinSource8, GPIO_AF_6); // TIM1_CH1 PA8
@@ -224,11 +226,11 @@ void osdInit(void)
     TIM_TimeBaseInit(TIM1, &tim);
     // Reset timer on each edge (HSYNC)
     TIM_SelectInputTrigger(TIM1, TIM_TS_TI1FP1);
-    TIM_ETRConfig(TIM1, TIM_ExtTRGPSC_OFF, TIM_ExtTRGPolarity_NonInverted, 50);
+    TIM_ETRConfig(TIM1, TIM_ExtTRGPSC_OFF, TIM_ExtTRGPolarity_Inverted, 0xF);
     TIM_SelectSlaveMode(TIM1, TIM_SlaveMode_Reset);
     TIM_ITConfig(TIM1, TIM_IT_CC1, ENABLE);
     // Set compare value
-    TIM_SetCompare1(TIM1, 80); // shift left/right osd screen. timing depended from irq handler
+    TIM_SetCompare1(TIM1, 100); // shift left/right osd screen. timing depended from irq handler
     // Enable HSYNC Trigger IRQ
     nvic.NVIC_IRQChannel = TIM1_CC_IRQn;
     nvic.NVIC_IRQChannelPreemptionPriority = 0;
@@ -242,6 +244,12 @@ void osdInit(void)
     gpio.GPIO_Mode = GPIO_Mode_IN;
     gpio.GPIO_PuPd = GPIO_PuPd_NOPULL;
     GPIO_Init(GPIOB, &gpio);
+
+    // ODD/EVEN (PC15)
+    gpio.GPIO_Pin = GPIO_Pin_15;
+    gpio.GPIO_Mode = GPIO_Mode_IN;
+    gpio.GPIO_PuPd = GPIO_PuPd_NOPULL;
+    GPIO_Init(GPIOC, &gpio);
 
     // Pixel Clock Timer GPIO out (TIM8_CH1, PA15, AF2)
     GPIO_PinAFConfig(GPIOA, GPIO_PinSource15, GPIO_AF_2);
@@ -269,7 +277,7 @@ void osdInit(void)
     timoc.TIM_OutputState = TIM_OutputState_Enable;
     timoc.TIM_OutputNState = TIM_OutputNState_Disable;
     timoc.TIM_OCMode = TIM_OCMode_PWM2;
-    timoc.TIM_Pulse = 2;
+    timoc.TIM_Pulse = 5;
     timoc.TIM_OCPolarity = TIM_OCPolarity_Low;
     timoc.TIM_OCIdleState = TIM_OCIdleState_Set;
     TIM_OC1Init(TIM8, &timoc);
@@ -325,7 +333,7 @@ void osdInit(void)
     osdData.osdUpdateFlag = CoCreateFlag(0, 0);
 
     // init video generator
-    osdVideoGeneratorInit();
+    // osdVideoGeneratorInit();
 }
 
 // WHITE_DMA (end of pixels line)
@@ -333,10 +341,9 @@ void DMA1_Channel5_IRQHandler(void)
 {
     CoEnterISR();
     if (DMA1->ISR & DMA_ISR_TCIF5) {            // got end of transfer
-        LED0_ON;
+        DMA1->IFCR |= DMA_ISR_TCIF5;
         WHITE_DMA->CCR &= (uint16_t)(~DMA_CCR_EN);
         // BLACK_DMA->CCR &= (uint16_t)(~DMA_CCR_EN);
-        DMA1->IFCR |= DMA_ISR_TCIF5;
         while (WHITE_SPI->SR & SPI_SR_BSY);     // wait SPI for last bits
         TIM8->CR1 &= (uint16_t)~TIM_CR1_CEN;    // shut up my dear sck
 
@@ -355,10 +362,11 @@ void DMA1_Channel5_IRQHandler(void)
         BLKCPY_DMA->CNDTR = OSD_HRES;
         BLKCPY_DMA->CCR |= DMA_CCR_EN;
 #endif
-        LED0_OFF;
     }
     CoExitISR();
 }
+
+// void TIM1_CC_IRQHandler(void) __attribute__((section("ccm")));
 
 // HSYNC
 // PAL/SECAM have 625/50Hz and 288 active, NTSC 525 and 243 (242) active
@@ -369,14 +377,19 @@ void TIM1_CC_IRQHandler(void)
     static int inv = 0;
     int line;
 
-    CoEnterISR();
+#if 1
+    if (GPIOC->IDR & GPIO_Pin_15 == 0)
+        return;
+#endif
+
+    // CoEnterISR();
 
     osdData.Height = osdData.PAL ? OSD_HEIGHT_PAL : OSD_HEIGHT_NTSC;
     slpos = osdData.PAL ? 29 /* 46 */ : 25;      // used for shift up/down area screen
     slmax = slpos + osdData.Height;
 
     if (TIM1->SR & TIM_SR_CC1IF) {      // capture interrupt
-        TIM_ClearFlag(TIM1, TIM_FLAG_CC1);
+        TIM1->SR = (uint16_t)~TIM_FLAG_CC1;
         if (!(GPIOB->IDR & GPIO_Pin_15) && (osdData.currentScanLine > 200)) {    // wait VSYNC
             // Note: got max 309-314 for PAL and must be 264 and more in NTSC
             if (maxline < osdData.currentScanLine)
@@ -386,7 +399,7 @@ void TIM1_CC_IRQHandler(void)
             osdData.PAL = maxline > 300 ? 1 : 0;        // recheck mode
             osdData.currentScanLine = 0;
             maxline = 0;
-        } else if (GPIOA->IDR & GPIO_Pin_8) {   // check HSYNC
+        } else /* if (GPIOA->IDR & GPIO_Pin_8) */ {   // check HSYNC
             osdData.currentScanLine++;
 
             if (osdData.currentScanLine >= slpos && osdData.currentScanLine <= slmax - 1) {
@@ -407,9 +420,10 @@ void TIM1_CC_IRQHandler(void)
                 BLACK_DMA->CCR |= DMA_CCR_EN; // No interrupt for black, it ends w/white | DMA_CCR_TCIE;
 
                 // start video out
+                TIM8->CNT = 0;
                 TIM8->CR1 |= TIM_CR1_CEN;
                 // testing
-                // vdacVoltage(0, 600 - line);
+                // vdacVoltage(0, 700 - line / 2);
             }
 
             // first line pre-fill, next will be filled in DMA irq
@@ -452,5 +466,5 @@ void TIM1_CC_IRQHandler(void)
 #endif
         }
     }
-    CoExitISR();
+    // CoExitISR();
 }
