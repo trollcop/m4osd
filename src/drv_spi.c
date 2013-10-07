@@ -107,7 +107,7 @@ int spiTransfer(uint8_t *out, uint8_t *in, int len)
 void vdacVoltage(uint8_t dac, int voltage)
 {
     uint8_t buf[2];
-    uint8_t value = (voltage / (3300 / 255));
+    uint8_t value = (voltage * 255 / 3300);
     buf[0] = (dac << 6) | (0x1 << 4) | ((value >> 4) & 0xF);
     buf[1] = ((value & 0xF) << 4);
 
